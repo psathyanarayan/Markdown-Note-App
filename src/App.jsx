@@ -1,39 +1,60 @@
 import React from "react"
-import Sidebar from "/src/components/Sidebar"
-import Editor from "/src/components/Editor"
-import { data } from "/src/data"
+import Sidebar from "./components/Sidebar"
+import Editor from "./components/Editor"
+import { data } from "./data"
 import Split from "react-split"
 import {nanoid} from "nanoid"
 import "/src/App.css"
-/**
- * Challenge: Spend 10-20+ minutes reading through the code
- * and trying to understand how it's currently working. Spend
- * as much time as you need to feel confident that you 
- * understand the existing code (although you don't need
- * to fully understand everything to move on)
- */
-
 export default function App() {
-    const [notes, setNotes] = React.useState([])
+    
+    const [notes, setNotes] = React.useState(
+        // Helps to sync the notes with the local storage
+       () => JSON.parse(localStorage.getItem("notes")) || [] // Lazy initialization that is only called once
+    )
     const [currentNoteId, setCurrentNoteId] = React.useState(
         (notes[0] && notes[0].id) || ""
     )
     
+    React.useEffect(() => {
+        localStorage.setItem("notes", JSON.stringify(notes))
+    }, [notes])
+    
     function createNewNote() {
         const newNote = {
             id: nanoid(),
-            body: "# Type your markdown note's title here"
+            body: "# Type your markdown note's title here",
         }
         setNotes(prevNotes => [newNote, ...prevNotes])
         setCurrentNoteId(newNote.id)
     }
     
+    function deleteNote(event, noteId) {
+        // Used to stop propagation of the event
+        event.stopPropagation()
+        setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId))
+    }
+
     function updateNote(text) {
-        setNotes(oldNotes => oldNotes.map(oldNote => {
-            return oldNote.id === currentNoteId
-                ? { ...oldNote, body: text }
-                : oldNote
-        }))
+        // Try to rearrange the most recently-modified
+        // not to be at the top
+        setNotes(oldNotes => {
+            const newArrangedNotes = []
+            for(let i=0;i<oldNotes.length;i++) {
+                if(oldNotes[i].id === currentNoteId) {
+                    newArrangedNotes.unshift({ ...oldNotes[i], body: text })
+                } else {
+                    newArrangedNotes.push(oldNotes[i])
+                }
+            }
+            return newArrangedNotes
+        })
+        
+        // This does not rearrange the notes
+        // setNotes(oldNotes => oldNotes.map(oldNote => {
+        //     return oldNote.id === currentNoteId
+        //         ? { ...oldNote, body: text }
+        //         : oldNote
+        // }))
     }
     
     function findCurrentNote() {
@@ -57,6 +78,7 @@ export default function App() {
                     currentNote={findCurrentNote()}
                     setCurrentNoteId={setCurrentNoteId}
                     newNote={createNewNote}
+                    deleteNote={deleteNote}
                 />
                 {
                     currentNoteId && 
